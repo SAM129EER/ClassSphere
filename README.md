@@ -1,3 +1,5 @@
+#Live Demo = https://class-sphere-six.vercel.app/
+
 # ClassSphere 🎓
 
 ClassSphere is a modern full-stack classroom management platform built with React, TypeScript, Express, PostgreSQL, and Drizzle ORM.
