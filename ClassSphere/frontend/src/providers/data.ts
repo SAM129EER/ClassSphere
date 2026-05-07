@@ -83,6 +83,9 @@ const options: CreateDataProviderOptions = {
   },
 };
 
-const { dataProvider } = createDataProvider(BACKEND_BASE_URL, options);
+const { dataProvider } = createDataProvider(
+  `${BACKEND_BASE_URL}/api`,
+  options
+);
 
 export { dataProvider };
