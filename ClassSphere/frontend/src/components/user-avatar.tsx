@@ -1,13 +1,12 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { useGetIdentity } from "@refinedev/core";
-import type { User } from "@/types";
+import { useAuth } from "@/context/auth-context";
 
 export function UserAvatar() {
-  const { data: user, isLoading: userIsLoading } = useGetIdentity<User>();
+  const { user, loading } = useAuth();
 
-  if (userIsLoading || !user) {
+  if (loading || !user) {
     return <Skeleton className={cn("h-9", "w-9", "rounded-full")} />;
   }
 
@@ -23,7 +22,7 @@ export function UserAvatar() {
 }
 
 const getInitials = (name = "") => {
-  const names = name.split(" ");
+  const names = name.trim().split(/\s+/);
   let initials = names[0].substring(0, 1).toUpperCase();
 
   if (names.length > 1) {

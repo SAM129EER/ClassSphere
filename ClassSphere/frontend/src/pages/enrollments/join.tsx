@@ -1,13 +1,15 @@
+import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { useCreate, useGetIdentity } from "@refinedev/core";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
+import { useCreate } from "@/hooks/use-api";
+import { useAuth } from "@/context/auth-context";
 
-import { Breadcrumb } from "@/components/refine-ui/layout/breadcrumb";
-import { CreateView } from "@/components/refine-ui/views/create-view";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
 import {
   Form,
   FormControl,
@@ -16,9 +18,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
-import type { User } from "@/types";
+import { toast } from "sonner";
 
 const joinSchema = z.object({
   inviteCode: z.string().min(3, "Invite code is required"),
@@ -28,11 +28,8 @@ type JoinFormValues = z.infer<typeof joinSchema>;
 
 const EnrollmentsJoin = () => {
   const navigate = useNavigate();
-  const {
-    mutateAsync: joinEnrollment,
-    mutation: { isPending },
-  } = useCreate();
-  const { data: currentUser } = useGetIdentity<User>();
+  const { user: currentUser } = useAuth();
+  const { mutateAsync: joinEnrollment, isPending } = useCreate("enrollments/join");
 
   const form = useForm<JoinFormValues>({
     resolver: zodResolver(joinSchema),
@@ -46,45 +43,47 @@ const EnrollmentsJoin = () => {
   const onSubmit = async (values: JoinFormValues) => {
     if (!currentUser?.id) return;
 
-    const response = await joinEnrollment({
-      resource: "enrollments/join",
-      values: {
+    try {
+      const response = await joinEnrollment({
         inviteCode: values.inviteCode,
         studentId: currentUser.id,
-      },
-    });
+      });
 
-    navigate("/enrollments/confirm", {
-      state: {
-        enrollment: response?.data,
-      },
-    });
+      toast.success("Joined class successfully!", { richColors: true });
+
+      navigate("/enrollments/confirm", {
+        state: {
+          enrollment: response?.data || response,
+        },
+      });
+    } catch (err: any) {
+      console.error("Join enrollment failed:", err);
+      toast.error(err.message || "Failed to join class. Please check your invite code.", { richColors: true });
+    }
   };
 
   const isSubmitDisabled = isPending || !currentUser?.id || !inviteCode;
 
   return (
-    <CreateView className="class-view">
-      <Breadcrumb />
-
-      <h1 className="page-title">Join by Invite Code</h1>
-      <div className="intro-row">
-        <p>Enter the invite code provided by your instructor.</p>
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Join by Invite Code</h1>
+        <p className="text-muted-foreground">
+          Enter the invite code provided by your instructor.
+        </p>
       </div>
 
       <Separator />
 
-      <div className="my-4 flex items-center">
-        <Card className="class-form-card">
-          <CardHeader className="relative z-10">
-            <CardTitle className="text-2xl pb-0 font-bold text-gradient-orange">
+      <div className="my-4 flex items-center justify-center">
+        <Card className="w-full max-w-2xl">
+          <CardHeader>
+            <CardTitle className="text-xl font-semibold">
               Join Class
             </CardTitle>
           </CardHeader>
-
           <Separator />
-
-          <CardContent className="mt-7">
+          <CardContent className="mt-6">
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit(onSubmit)}
@@ -124,7 +123,7 @@ const EnrollmentsJoin = () => {
           </CardContent>
         </Card>
       </div>
-    </CreateView>
+    </div>
   );
 };
 

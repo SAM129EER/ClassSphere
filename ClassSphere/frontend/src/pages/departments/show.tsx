@@ -1,23 +1,25 @@
-import { useShow } from "@refinedev/core";
-import { useTable } from "@refinedev/react-table";
-import { ColumnDef } from "@tanstack/react-table";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { useShow, useList } from "@/hooks/use-api";
 import { BookOpen, Layers, Users } from "lucide-react";
-import { useMemo } from "react";
-import { useParams } from "react-router";
-
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DataTable } from "@/components/refine-ui/data-table/data-table";
-import { ShowButton } from "@/components/refine-ui/buttons/show";
+import { Separator } from "@/components/ui/separator";
 import {
-  ShowView,
-  ShowViewHeader,
-} from "@/components/refine-ui/views/show-view";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import type { Department } from "@/types";
 
 type DepartmentDetails = {
-  department: Department;
+  department: Department & {
+    code?: string | null;
+  };
   totals: {
     subjects: number;
     classes: number;
@@ -30,7 +32,6 @@ type DepartmentSubject = {
   name: string;
   code?: string | null;
   description?: string | null;
-  createdAt?: string | null;
 };
 
 type DepartmentClass = {
@@ -61,303 +62,83 @@ type DepartmentUser = {
 
 const DepartmentShow = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const departmentId = id ?? "";
 
-  const { query } = useShow<DepartmentDetails>({
-    resource: "departments",
-  });
+  // Fetch department overview details
+  const { data: detailsData, isLoading: detailsLoading, isError } = useShow<DepartmentDetails>("departments", departmentId);
+  const details = detailsData?.data;
 
-  const details = query.data?.data;
-
-  const subjectColumns = useMemo<ColumnDef<DepartmentSubject>[]>(
-    () => [
-      {
-        id: "code",
-        accessorKey: "code",
-        size: 120,
-        header: () => <p className="column-title ml-2">Code</p>,
-        cell: ({ getValue }) => {
-          const code = getValue<string>();
-          return code ? (
-            <Badge>{code}</Badge>
-          ) : (
-            <span className="text-muted-foreground ml-2">No code</span>
-          );
-        },
-      },
-      {
-        id: "name",
-        accessorKey: "name",
-        size: 220,
-        header: () => <p className="column-title">Subject</p>,
-        cell: ({ getValue }) => (
-          <span className="text-foreground">{getValue<string>()}</span>
-        ),
-      },
-      {
-        id: "description",
-        accessorKey: "description",
-        size: 320,
-        header: () => <p className="column-title">Description</p>,
-        cell: ({ getValue }) => {
-          const description = getValue<string>();
-
-          return description ? (
-            <span className="truncate line-clamp-2">{description}</span>
-          ) : (
-            <span className="text-muted-foreground">No description</span>
-          );
-        },
-      },
-      {
-        id: "details",
-        size: 140,
-        header: () => <p className="column-title">Details</p>,
-        cell: ({ row }) => (
-          <ShowButton
-            resource="subjects"
-            recordItemId={row.original.id}
-            variant="outline"
-            size="sm"
-          >
-            View
-          </ShowButton>
-        ),
-      },
-    ],
-    []
+  // Fetch subjects of this department
+  const { data: subjectsData, isLoading: subjectsLoading } = useList<DepartmentSubject>(
+    `departments/${departmentId}/subjects`,
+    { limit: 10 }
   );
+  const subjects = subjectsData?.data ?? [];
 
-  const classColumns = useMemo<ColumnDef<DepartmentClass>[]>(
-    () => [
-      {
-        id: "name",
-        accessorKey: "name",
-        size: 240,
-        header: () => <p className="column-title">Class</p>,
-        cell: ({ getValue }) => (
-          <span className="text-foreground">{getValue<string>()}</span>
-        ),
-      },
-      {
-        id: "subject",
-        accessorKey: "subject",
-        size: 200,
-        header: () => <p className="column-title">Subject</p>,
-        cell: ({ row }) => {
-          const subject = row.original.subject;
-          if (!subject) {
-            return <span className="text-muted-foreground">No subject</span>;
-          }
-          return (
-            <span className="truncate">
-              {subject.name}
-              {subject.code ? ` (${subject.code})` : ""}
-            </span>
-          );
-        },
-      },
-      {
-        id: "teacher",
-        accessorKey: "teacher",
-        size: 220,
-        header: () => <p className="column-title">Teacher</p>,
-        cell: ({ row }) => {
-          const teacher = row.original.teacher;
-          if (!teacher) {
-            return <span className="text-muted-foreground">Unassigned</span>;
-          }
-
-          return (
-            <div className="flex items-center gap-2">
-              <Avatar className="size-7">
-                {teacher.image && (
-                  <AvatarImage src={teacher.image} alt={teacher.name} />
-                )}
-                <AvatarFallback>{getInitials(teacher.name)}</AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col truncate">
-                <span className="truncate">{teacher.name}</span>
-                <span className="text-xs text-muted-foreground truncate">
-                  {teacher.email}
-                </span>
-              </div>
-            </div>
-          );
-        },
-      },
-      {
-        id: "status",
-        accessorKey: "status",
-        size: 120,
-        header: () => <p className="column-title">Status</p>,
-        cell: ({ getValue }) => {
-          const status = getValue<string>();
-          return (
-            <Badge variant={status === "active" ? "default" : "secondary"}>
-              {status ?? "unknown"}
-            </Badge>
-          );
-        },
-      },
-      {
-        id: "details",
-        size: 140,
-        header: () => <p className="column-title">Details</p>,
-        cell: ({ row }) => (
-          <ShowButton
-            resource="classes"
-            recordItemId={row.original.id}
-            variant="outline"
-            size="sm"
-          >
-            View
-          </ShowButton>
-        ),
-      },
-    ],
-    []
+  // Fetch classes of this department
+  const { data: classesData, isLoading: classesLoading } = useList<DepartmentClass>(
+    `departments/${departmentId}/classes`,
+    { limit: 10 }
   );
+  const classes = classesData?.data ?? [];
 
-  const userColumns = useMemo<ColumnDef<DepartmentUser>[]>(
-    () => [
-      {
-        id: "name",
-        accessorKey: "name",
-        size: 240,
-        header: () => <p className="column-title">User</p>,
-        cell: ({ row }) => (
-          <div className="flex items-center gap-2">
-            <Avatar className="size-7">
-              {row.original.image && (
-                <AvatarImage src={row.original.image} alt={row.original.name} />
-              )}
-              <AvatarFallback>{getInitials(row.original.name)}</AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col truncate">
-              <span className="truncate">{row.original.name}</span>
-              <span className="text-xs text-muted-foreground truncate">
-                {row.original.email}
-              </span>
-            </div>
-          </div>
-        ),
-      },
-      {
-        id: "role",
-        accessorKey: "role",
-        size: 140,
-        header: () => <p className="column-title">Role</p>,
-        cell: ({ getValue }) => (
-          <Badge variant="secondary">{getValue<string>()}</Badge>
-        ),
-      },
-      {
-        id: "details",
-        size: 140,
-        header: () => <p className="column-title">Details</p>,
-        cell: ({ row }) => (
-          <ShowButton
-            resource="users"
-            recordItemId={row.original.id}
-            variant="outline"
-            size="sm"
-          >
-            View
-          </ShowButton>
-        ),
-      },
-    ],
-    []
+  // Fetch teachers
+  const { data: teachersData, isLoading: teachersLoading } = useList<DepartmentUser>(
+    `departments/${departmentId}/users`,
+    { role: "teacher", limit: 10 }
   );
+  const teachers = teachersData?.data ?? [];
 
-  const subjectsTable = useTable<DepartmentSubject>({
-    columns: subjectColumns,
-    refineCoreProps: {
-      resource: `departments/${departmentId}/subjects`,
-      pagination: {
-        pageSize: 10,
-        mode: "server",
-      },
-    },
-  });
+  // Fetch students
+  const { data: studentsData, isLoading: studentsLoading } = useList<DepartmentUser>(
+    `departments/${departmentId}/users`,
+    { role: "student", limit: 10 }
+  );
+  const students = studentsData?.data ?? [];
 
-  const classesTable = useTable<DepartmentClass>({
-    columns: classColumns,
-    refineCoreProps: {
-      resource: `departments/${departmentId}/classes`,
-      pagination: {
-        pageSize: 10,
-        mode: "server",
-      },
-    },
-  });
-
-  const teachersTable = useTable<DepartmentUser>({
-    columns: userColumns,
-    refineCoreProps: {
-      resource: `departments/${departmentId}/users`,
-      pagination: {
-        pageSize: 10,
-        mode: "server",
-      },
-      filters: {
-        permanent: [
-          {
-            field: "role",
-            operator: "eq",
-            value: "teacher",
-          },
-        ],
-      },
-    },
-  });
-
-  const studentsTable = useTable<DepartmentUser>({
-    columns: userColumns,
-    refineCoreProps: {
-      resource: `departments/${departmentId}/users`,
-      pagination: {
-        pageSize: 10,
-        mode: "server",
-      },
-      filters: {
-        permanent: [
-          {
-            field: "role",
-            operator: "eq",
-            value: "student",
-          },
-        ],
-      },
-    },
-  });
-
-  if (query.isLoading || query.isError || !details) {
+  if (detailsLoading || isError || !details) {
     return (
-      <ShowView className="class-view">
-        <ShowViewHeader resource="departments" title="Department Details" />
-        <p className="text-sm text-muted-foreground">
-          {query.isLoading
-            ? "Loading department details..."
-            : query.isError
-            ? "Failed to load department details."
-            : "Department details not found."}
-        </p>
-      </ShowView>
+      <div className="space-y-4">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" onClick={() => navigate(-1)}>Back</Button>
+          <h1 className="text-2xl font-bold tracking-tight">Department Details</h1>
+        </div>
+        <Card className="p-6">
+          <p className="text-sm text-muted-foreground">
+            {detailsLoading
+              ? "Loading department details..."
+              : isError
+              ? "Failed to load department details."
+              : "Department details not found."}
+          </p>
+        </Card>
+      </div>
     );
   }
 
   return (
-    <ShowView className="class-view space-y-6">
-      <ShowViewHeader resource="departments" title={details.department.name} />
+    <div className="space-y-6">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" onClick={() => navigate(-1)}>Back</Button>
+          <h1 className="text-2xl font-bold tracking-tight">{details.department.name}</h1>
+        </div>
+        {details.department.code && (
+          <Badge variant="outline" className="w-fit text-sm py-1 px-3">
+            {details.department.code}
+          </Badge>
+        )}
+      </div>
+
+      <Separator />
 
       <Card className="hover:shadow-md transition-shadow">
         <CardHeader>
           <CardTitle>Overview</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground leading-relaxed">
             {details.department.description ?? "No description provided."}
           </p>
 
@@ -368,7 +149,7 @@ const DepartmentShow = () => {
                 <BookOpen className="h-4 w-4" />
               </div>
               <div className="mt-2 text-2xl font-semibold">
-                {details.totals.subjects}
+                {details.totals?.subjects ?? subjects.length}
               </div>
             </div>
             <div className="rounded-lg border border-border bg-muted/20 p-4">
@@ -377,7 +158,7 @@ const DepartmentShow = () => {
                 <Layers className="h-4 w-4" />
               </div>
               <div className="mt-2 text-2xl font-semibold">
-                {details.totals.classes}
+                {details.totals?.classes ?? classes.length}
               </div>
             </div>
             <div className="rounded-lg border border-border bg-muted/20 p-4">
@@ -386,7 +167,7 @@ const DepartmentShow = () => {
                 <Users className="h-4 w-4" />
               </div>
               <div className="mt-2 text-2xl font-semibold">
-                {details.totals.enrolledStudents}
+                {details.totals?.enrolledStudents ?? students.length}
               </div>
             </div>
           </div>
@@ -396,43 +177,247 @@ const DepartmentShow = () => {
       <Card className="hover:shadow-md transition-shadow">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Subjects</CardTitle>
-          <Badge variant="secondary">{details.totals.subjects}</Badge>
+          <Badge>{details.totals?.subjects ?? subjects.length}</Badge>
         </CardHeader>
         <CardContent>
-          <DataTable table={subjectsTable} paginationVariant="simple" />
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[120px]">Code</TableHead>
+                  <TableHead>Subject</TableHead>
+                  <TableHead className="hidden md:table-cell">Description</TableHead>
+                  <TableHead className="w-[100px] text-right">Details</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {subjectsLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center">
+                      Loading subjects...
+                    </TableCell>
+                  </TableRow>
+                ) : subjects.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center">
+                      No subjects found.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  subjects.map((sub: DepartmentSubject) => (
+                    <TableRow key={sub.id}>
+                      <TableCell>
+                        {sub.code ? <Badge>{sub.code}</Badge> : <span className="text-muted-foreground">No code</span>}
+                      </TableCell>
+                      <TableCell className="font-medium text-foreground">{sub.name}</TableCell>
+                      <TableCell className="hidden md:table-cell text-muted-foreground max-w-xs truncate">
+                        {sub.description ?? "No description"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button asChild variant="outline" size="sm">
+                          <Link to={`/subjects/show/${sub.id}`}>View</Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
       <Card className="hover:shadow-md transition-shadow">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Classes</CardTitle>
-          <Badge variant="secondary">{details.totals.classes}</Badge>
+          <Badge>{details.totals?.classes ?? classes.length}</Badge>
         </CardHeader>
         <CardContent>
-          <DataTable table={classesTable} paginationVariant="simple" />
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Class</TableHead>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>Teacher</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-[100px] text-right">Details</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {classesLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center">
+                      Loading classes...
+                    </TableCell>
+                  </TableRow>
+                ) : classes.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center">
+                      No classes found.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  classes.map((cls: DepartmentClass) => (
+                    <TableRow key={cls.id}>
+                      <TableCell className="font-medium text-foreground">{cls.name}</TableCell>
+                      <TableCell>
+                        {cls.subject ? (
+                          <span className="truncate">
+                            {cls.subject.name}
+                            {cls.subject.code ? ` (${cls.subject.code})` : ""}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">No subject</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {cls.teacher ? (
+                          <div className="flex items-center gap-2">
+                            <Avatar className="size-7">
+                              {cls.teacher.image && <AvatarImage src={cls.teacher.image} alt={cls.teacher.name} />}
+                              <AvatarFallback>{getInitials(cls.teacher.name)}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex flex-col truncate">
+                              <span className="text-sm">{cls.teacher.name}</span>
+                              <span className="text-xs text-muted-foreground">{cls.teacher.email}</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">Unassigned</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={cls.status === "active" ? "default" : "secondary"}>
+                          {cls.status ?? "unknown"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button asChild variant="outline" size="sm">
+                          <Link to={`/classes/show/${cls.id}`}>View</Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader>
             <CardTitle>Teachers</CardTitle>
           </CardHeader>
           <CardContent>
-            <DataTable table={teachersTable} paginationVariant="simple" />
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead className="w-[100px] text-right">Details</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {teachersLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={2} className="h-24 text-center">
+                        Loading teachers...
+                      </TableCell>
+                    </TableRow>
+                  ) : teachers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={2} className="h-24 text-center">
+                        No teachers found.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    teachers.map((t: DepartmentUser) => (
+                      <TableRow key={t.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="size-7">
+                              {t.image && <AvatarImage src={t.image} alt={t.name} />}
+                              <AvatarFallback>{getInitials(t.name)}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium">{t.name}</span>
+                              <span className="text-xs text-muted-foreground">{t.email}</span>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button asChild variant="outline" size="sm">
+                            <Link to={`/faculty/show/${t.id}`}>View</Link>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
 
         <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader>
             <CardTitle>Students</CardTitle>
           </CardHeader>
           <CardContent>
-            <DataTable table={studentsTable} paginationVariant="simple" />
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead className="w-[100px] text-right">Details</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {studentsLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={2} className="h-24 text-center">
+                        Loading students...
+                      </TableCell>
+                    </TableRow>
+                  ) : students.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={2} className="h-24 text-center">
+                        No students found.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    students.map((s: DepartmentUser) => (
+                      <TableRow key={s.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="size-7">
+                              {s.image && <AvatarImage src={s.image} alt={s.name} />}
+                              <AvatarFallback>{getInitials(s.name)}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium">{s.name}</span>
+                              <span className="text-xs text-muted-foreground">{s.email}</span>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button asChild variant="outline" size="sm">
+                            <Link to={`/faculty/show/${s.id}`}>View</Link>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </div>
-    </ShowView>
+    </div>
   );
 };
 

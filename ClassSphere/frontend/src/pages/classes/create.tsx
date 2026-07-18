@@ -1,9 +1,16 @@
-import { useForm } from "@refinedev/react-hook-form";
+import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
+
+import { useList, useCreate } from "@/hooks/use-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Form,
   FormControl,
@@ -19,105 +26,78 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-import { CreateView } from "@/components/refine-ui/views/create-view";
-import { Breadcrumb } from "@/components/refine-ui/layout/breadcrumb";
-
-import { Textarea } from "@/components/ui/textarea";
-import { useBack, useList } from "@refinedev/core";
-import { Loader2 } from "lucide-react";
 import { classSchema } from "@/lib/schema";
 import UploadWidget from "@/components/upload-widget";
-import { Subject, User } from "@/types";
-import z from "zod";
+import type { Subject, User } from "@/types";
 
 const ClassesCreate = () => {
-  const back = useBack();
+  const navigate = useNavigate();
+  const { mutateAsync: createClass, isPending } = useCreate("classes");
 
-  const form = useForm({
+  const form = useForm<z.infer<typeof classSchema>>({
     resolver: zodResolver(classSchema),
-    refineCoreProps: {
-      resource: "classes",
-      action: "create",
-    },
     defaultValues: {
       status: "active",
+      name: "",
+      description: "",
+      bannerUrl: "",
+      bannerCldPubId: "",
+      teacherId: "",
     },
   });
 
-  const {
-    refineCore: { onFinish },
-    handleSubmit,
-    formState: { isSubmitting, errors },
-    control,
-  } = form;
-
   const bannerPublicId = form.watch("bannerCldPubId");
+  const errors = form.formState.errors;
+
+  // Fetch subjects list for select box
+  const { data: subjectsQuery } = useList<Subject>("subjects", { limit: 100 });
+  const subjects = subjectsQuery?.data || [];
+  const subjectsLoading = !subjectsQuery;
+
+  // Fetch teachers list for select box
+  const { data: teachersQuery } = useList<User>("users", { role: "teacher", limit: 100 });
+  const teachers = teachersQuery?.data || [];
+  const teachersLoading = !teachersQuery;
 
   const onSubmit = async (values: z.infer<typeof classSchema>) => {
     try {
-      await onFinish(values);
-    } catch (error) {
+      await createClass(values);
+      toast.success("Class created successfully!", { richColors: true });
+      navigate("/classes");
+    } catch (error: any) {
       console.error("Error creating class:", error);
+      toast.error(error.message || "Failed to create class", { richColors: true });
     }
   };
 
-  // Fetch subjects list
-  const { query: subjectsQuery } = useList<Subject>({
-    resource: "subjects",
-    pagination: {
-      pageSize: 100,
-    },
-  });
-
-  // Fetch teachers list
-  const { query: teachersQuery } = useList<User>({
-    resource: "users",
-    filters: [
-      {
-        field: "role",
-        operator: "eq",
-        value: "teacher",
-      },
-    ],
-    pagination: {
-      pageSize: 100,
-    },
-  });
-
-  const teachers = teachersQuery.data?.data || [];
-  const teachersLoading = teachersQuery.isLoading;
-
-  const subjects = subjectsQuery.data?.data || [];
-  const subjectsLoading = subjectsQuery.isLoading;
-
   return (
-    <CreateView className="class-view">
-      <Breadcrumb />
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Create a Class</h1>
+        <p className="text-muted-foreground">
+          Provide the required information below to add a class.
+        </p>
+      </div>
 
-      <h1 className="page-title">Create a Class</h1>
-      <div className="intro-row">
-        <p>Provide the required information below to add a class.</p>
-        <Button onClick={() => back()}>Go Back</Button>
+      <div className="flex justify-between items-center">
+        <Button variant="outline" onClick={() => navigate(-1)}>Go Back</Button>
       </div>
 
       <Separator />
 
-      <div className="my-4 flex items-center">
-        <Card className="class-form-card">
-          <CardHeader className="relative z-10">
-            <CardTitle className="text-2xl pb-0 font-bold text-gradient-orange">
+      <div className="my-4 flex items-center justify-center">
+        <Card className="w-full max-w-2xl">
+          <CardHeader>
+            <CardTitle className="text-xl font-semibold">
               Fill out form
             </CardTitle>
           </CardHeader>
-
           <Separator />
-
-          <CardContent className="mt-7">
+          <CardContent className="mt-6">
             <Form {...form}>
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
                 <FormField
-                  control={control}
+                  control={form.control}
                   name="bannerUrl"
                   render={({ field }) => (
                     <FormItem>
@@ -153,7 +133,7 @@ const ClassesCreate = () => {
                       </FormControl>
                       <FormMessage />
                       {errors.bannerCldPubId && !errors.bannerUrl && (
-                        <p className="text-destructive text-sm">
+                        <p className="text-destructive text-sm mt-1">
                           {errors.bannerCldPubId.message?.toString()}
                         </p>
                       )}
@@ -162,7 +142,7 @@ const ClassesCreate = () => {
                 />
 
                 <FormField
-                  control={control}
+                  control={form.control}
                   name="name"
                   render={({ field }) => (
                     <FormItem>
@@ -182,7 +162,7 @@ const ClassesCreate = () => {
 
                 <div className="grid sm:grid-cols-2 gap-4">
                   <FormField
-                    control={control}
+                    control={form.control}
                     name="subjectId"
                     render={({ field }) => (
                       <FormItem>
@@ -193,7 +173,7 @@ const ClassesCreate = () => {
                           onValueChange={(value) =>
                             field.onChange(Number(value))
                           }
-                          value={field.value?.toString()}
+                          value={field.value ? field.value.toString() : ""}
                           disabled={subjectsLoading}
                         >
                           <FormControl>
@@ -202,7 +182,7 @@ const ClassesCreate = () => {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {subjects.map((subject) => (
+                            {subjects.map((subject: Subject) => (
                               <SelectItem
                                 key={subject.id}
                                 value={subject.id.toString()}
@@ -218,7 +198,7 @@ const ClassesCreate = () => {
                   />
 
                   <FormField
-                    control={control}
+                    control={form.control}
                     name="teacherId"
                     render={({ field }) => (
                       <FormItem>
@@ -227,7 +207,7 @@ const ClassesCreate = () => {
                         </FormLabel>
                         <Select
                           onValueChange={field.onChange}
-                          value={field.value?.toString()}
+                          value={field.value}
                           disabled={teachersLoading}
                         >
                           <FormControl>
@@ -236,7 +216,7 @@ const ClassesCreate = () => {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {teachers.map((teacher) => (
+                            {teachers.map((teacher: User) => (
                               <SelectItem key={teacher.id} value={teacher.id}>
                                 {teacher.name}
                               </SelectItem>
@@ -251,7 +231,7 @@ const ClassesCreate = () => {
 
                 <div className="grid sm:grid-cols-2 gap-4">
                   <FormField
-                    control={control}
+                    control={form.control}
                     name="capacity"
                     render={({ field }) => (
                       <FormItem>
@@ -267,7 +247,7 @@ const ClassesCreate = () => {
                               const value = e.target.value;
                               field.onChange(value ? Number(value) : undefined);
                             }}
-                            value={(field.value as number | undefined) ?? ""}
+                            value={field.value ?? ""}
                             name={field.name}
                             ref={field.ref}
                             onBlur={field.onBlur}
@@ -279,7 +259,7 @@ const ClassesCreate = () => {
                   />
 
                   <FormField
-                    control={control}
+                    control={form.control}
                     name="status"
                     render={({ field }) => (
                       <FormItem>
@@ -307,7 +287,7 @@ const ClassesCreate = () => {
                 </div>
 
                 <FormField
-                  control={control}
+                  control={form.control}
                   name="description"
                   render={({ field }) => (
                     <FormItem>
@@ -317,6 +297,7 @@ const ClassesCreate = () => {
                       <FormControl>
                         <Textarea
                           placeholder="Brief description about the class"
+                          className="min-h-24"
                           {...field}
                         />
                       </FormControl>
@@ -325,13 +306,11 @@ const ClassesCreate = () => {
                   )}
                 />
 
-                <Separator />
-
-                <Button type="submit" size="lg" className="w-full">
-                  {isSubmitting ? (
-                    <div className="flex gap-1">
+                <Button type="submit" size="lg" className="w-full" disabled={isPending}>
+                  {isPending ? (
+                    <div className="flex items-center gap-1 justify-center">
                       <span>Creating Class...</span>
-                      <Loader2 className="inline-block ml-2 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin ml-1" />
                     </div>
                   ) : (
                     "Create Class"
@@ -342,7 +321,7 @@ const ClassesCreate = () => {
           </CardContent>
         </Card>
       </div>
-    </CreateView>
+    </div>
   );
 };
 

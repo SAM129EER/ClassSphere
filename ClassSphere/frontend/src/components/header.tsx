@@ -1,5 +1,6 @@
-import { UserAvatar } from "@/components/refine-ui/layout/user-avatar";
-import { ThemeToggle } from "@/components/refine-ui/theme/theme-toggle";
+import { useState } from "react";
+import { UserAvatar } from "./user-avatar";
+import { ThemeToggle } from "./theme-toggle";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,9 +10,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { useGetIdentity, useLogout } from "@refinedev/core";
+import { useAuth } from "@/context/auth-context";
 import { GraduationCap, LogOutIcon } from "lucide-react";
-import type { User } from "@/types";
+import { useNavigate } from "react-router-dom";
 
 export const Header = () => {
   const { isMobile } = useSidebar();
@@ -122,12 +123,22 @@ function MobileHeader() {
 }
 
 const UserDropdown = () => {
-  const { data: user } = useGetIdentity<User>();
-  const { mutate: logout, isPending: isLoggingOut } = useLogout();
+  const { user, logout } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    const result = await logout();
+    setIsLoggingOut(false);
+    if (result.success) {
+      navigate("/login");
+    }
+  };
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger>
+      <DropdownMenuTrigger className="focus:outline-none">
         <UserAvatar />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
@@ -148,12 +159,12 @@ const UserDropdown = () => {
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onClick={() => {
-            logout();
-          }}
+          onClick={handleLogout}
+          disabled={isLoggingOut}
+          className="cursor-pointer"
         >
           <LogOutIcon
-            className={cn("text-destructive", "hover:text-destructive")}
+            className={cn("text-destructive", "hover:text-destructive", "h-4", "w-4")}
           />
           <span className={cn("text-destructive", "hover:text-destructive")}>
             {isLoggingOut ? "Logging out..." : "Logout"}

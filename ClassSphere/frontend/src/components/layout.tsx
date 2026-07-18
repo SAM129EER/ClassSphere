@@ -1,13 +1,11 @@
-"use client";
-
-import { Header } from "@/components/refine-ui/layout/header";
-import { ThemeProvider } from "@/components/refine-ui/theme/theme-provider";
+import { Header } from "./header";
+import { ThemeProvider } from "./theme-provider";
+import { Sidebar } from "./sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import type { PropsWithChildren } from "react";
-import { Sidebar } from "./sidebar";
+import { Outlet } from "react-router-dom";
 
-export function Layout({ children }: PropsWithChildren) {
+export function Layout() {
   return (
     <ThemeProvider>
       <SidebarProvider>
@@ -31,7 +29,7 @@ export function Layout({ children }: PropsWithChildren) {
               "lg:pt-6"
             )}
           >
-            {children}
+            <Outlet />
           </main>
         </SidebarInset>
       </SidebarProvider>

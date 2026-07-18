@@ -1,18 +1,18 @@
-import { useShow } from "@refinedev/core";
-import { useTable } from "@refinedev/react-table";
-import { ColumnDef } from "@tanstack/react-table";
-import { useMemo } from "react";
-import { useParams } from "react-router";
-
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { useShow, useList } from "@/hooks/use-api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DataTable } from "@/components/refine-ui/data-table/data-table";
-import { ShowButton } from "@/components/refine-ui/buttons/show";
+import { Separator } from "@/components/ui/separator";
 import {
-  ShowView,
-  ShowViewHeader,
-} from "@/components/refine-ui/views/show-view";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import type { User } from "@/types";
 
 type FacultyDepartment = {
@@ -36,221 +36,198 @@ type FacultySubject = {
 
 const FacultyShow = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const userId = id ?? "";
 
-  const { query } = useShow<User>({
-    resource: "users",
-  });
+  // Fetch faculty user profile details
+  const { data: userData, isLoading: userLoading, isError } = useShow<User>("users", userId);
+  const user = userData?.data;
 
-  const user = query.data?.data;
-
-  const departmentColumns = useMemo<ColumnDef<FacultyDepartment>[]>(
-    () => [
-      {
-        id: "code",
-        accessorKey: "code",
-        size: 120,
-        header: () => <p className="column-title ml-2">Code</p>,
-        cell: ({ getValue }) => {
-          const code = getValue<string>();
-          return code ? (
-            <Badge>{code}</Badge>
-          ) : (
-            <span className="text-muted-foreground ml-2">No code</span>
-          );
-        },
-      },
-      {
-        id: "name",
-        accessorKey: "name",
-        size: 220,
-        header: () => <p className="column-title">Department</p>,
-        cell: ({ getValue }) => (
-          <span className="text-foreground">{getValue<string>()}</span>
-        ),
-      },
-      {
-        id: "description",
-        accessorKey: "description",
-        size: 320,
-        header: () => <p className="column-title">Description</p>,
-        cell: ({ getValue }) => {
-          const description = getValue<string>();
-
-          return description ? (
-            <span className="truncate line-clamp-2">{description}</span>
-          ) : (
-            <span className="text-muted-foreground">No description</span>
-          );
-        },
-      },
-      {
-        id: "details",
-        size: 140,
-        header: () => <p className="column-title">Details</p>,
-        cell: ({ row }) => (
-          <ShowButton
-            resource="departments"
-            recordItemId={row.original.id}
-            variant="outline"
-            size="sm"
-          >
-            View
-          </ShowButton>
-        ),
-      },
-    ],
-    []
+  // Fetch departments tied to this user
+  const { data: deptsData, isLoading: deptsLoading } = useList<FacultyDepartment>(
+    `users/${userId}/departments`,
+    { limit: 10 }
   );
+  const departments = deptsData?.data ?? [];
 
-  const subjectColumns = useMemo<ColumnDef<FacultySubject>[]>(
-    () => [
-      {
-        id: "code",
-        accessorKey: "code",
-        size: 120,
-        header: () => <p className="column-title ml-2">Code</p>,
-        cell: ({ getValue }) => {
-          const code = getValue<string>();
-          return code ? (
-            <Badge>{code}</Badge>
-          ) : (
-            <span className="text-muted-foreground ml-2">No code</span>
-          );
-        },
-      },
-      {
-        id: "name",
-        accessorKey: "name",
-        size: 220,
-        header: () => <p className="column-title">Subject</p>,
-        cell: ({ getValue }) => (
-          <span className="text-foreground">{getValue<string>()}</span>
-        ),
-      },
-      {
-        id: "department",
-        accessorKey: "department",
-        size: 200,
-        header: () => <p className="column-title">Department</p>,
-        cell: ({ row }) => {
-          const department = row.original.department;
-          if (!department) {
-            return <span className="text-muted-foreground">No department</span>;
-          }
-          return (
-            <span className="truncate">
-              {department.name}
-              {department.code ? ` (${department.code})` : ""}
-            </span>
-          );
-        },
-      },
-      {
-        id: "details",
-        size: 140,
-        header: () => <p className="column-title">Details</p>,
-        cell: ({ row }) => (
-          <ShowButton
-            resource="subjects"
-            recordItemId={row.original.id}
-            variant="outline"
-            size="sm"
-          >
-            View
-          </ShowButton>
-        ),
-      },
-    ],
-    []
+  // Fetch subjects associated with this user
+  const { data: subsData, isLoading: subsLoading } = useList<FacultySubject>(
+    `users/${userId}/subjects`,
+    { limit: 10 }
   );
+  const subjects = subsData?.data ?? [];
 
-  const departmentsTable = useTable<FacultyDepartment>({
-    columns: departmentColumns,
-    refineCoreProps: {
-      resource: `users/${userId}/departments`,
-      pagination: {
-        pageSize: 10,
-        mode: "server",
-      },
-    },
-  });
-
-  const subjectsTable = useTable<FacultySubject>({
-    columns: subjectColumns,
-    refineCoreProps: {
-      resource: `users/${userId}/subjects`,
-      pagination: {
-        pageSize: 10,
-        mode: "server",
-      },
-    },
-  });
-
-  if (query.isLoading || query.isError || !user) {
+  if (userLoading || isError || !user) {
     return (
-      <ShowView className="class-view">
-        <ShowViewHeader resource="users" title="Faculty Details" />
-        <p className="text-sm text-muted-foreground">
-          {query.isLoading
-            ? "Loading faculty details..."
-            : query.isError
-            ? "Failed to load faculty details."
-            : "Faculty details not found."}
-        </p>
-      </ShowView>
+      <div className="space-y-4">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" onClick={() => navigate(-1)}>Back</Button>
+          <h1 className="text-2xl font-bold tracking-tight">Faculty Details</h1>
+        </div>
+        <Card className="p-6">
+          <p className="text-sm text-muted-foreground">
+            {userLoading
+              ? "Loading faculty details..."
+              : isError
+              ? "Failed to load faculty details."
+              : "Faculty details not found."}
+          </p>
+        </Card>
+      </div>
     );
   }
 
   return (
-    <ShowView className="class-view space-y-6">
-      <ShowViewHeader resource="users" title={user.name} />
+    <div className="space-y-6">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" onClick={() => navigate(-1)}>Back</Button>
+          <h1 className="text-2xl font-bold tracking-tight">{user.name}</h1>
+        </div>
+        <Badge variant="outline" className="w-fit text-sm py-1 px-3">
+          {user.role}
+        </Badge>
+      </div>
+
+      <Separator />
 
       <Card className="hover:shadow-md transition-shadow">
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader>
           <CardTitle>Profile</CardTitle>
-          <Badge variant="default">{user.role}</Badge>
         </CardHeader>
-        <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <CardContent>
           <div className="flex items-center gap-4">
-            <Avatar className="size-12">
+            <Avatar className="size-16">
               {user.image && <AvatarImage src={user.image} alt={user.name} />}
-              <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+              <AvatarFallback className="text-lg">{getInitials(user.name)}</AvatarFallback>
             </Avatar>
             <div>
-              <p className="text-lg font-semibold">{user.name}</p>
+              <p className="text-xl font-semibold text-foreground">{user.name}</p>
               <p className="text-sm text-muted-foreground">{user.email}</p>
+              {user.department && (
+                <Badge variant="secondary" className="mt-2">
+                  {user.department}
+                </Badge>
+              )}
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <div className="space-y-6">
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader>
-            <CardTitle>Departments</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Departments tied to {user.name} based on classes and enrollments.
-            </p>
-            <DataTable table={departmentsTable} paginationVariant="simple" />
-          </CardContent>
-        </Card>
+      <Card className="hover:shadow-md transition-shadow">
+        <CardHeader>
+          <CardTitle>Departments</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Departments tied to {user.name} based on classes and enrollments.
+          </p>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[120px]">Code</TableHead>
+                  <TableHead>Department</TableHead>
+                  <TableHead className="hidden md:table-cell">Description</TableHead>
+                  <TableHead className="w-[100px] text-right">Details</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {deptsLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center">
+                      Loading departments...
+                    </TableCell>
+                  </TableRow>
+                ) : departments.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center">
+                      No departments associated.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  departments.map((dept: FacultyDepartment) => (
+                    <TableRow key={dept.id}>
+                      <TableCell>
+                        {dept.code ? <Badge>{dept.code}</Badge> : <span className="text-muted-foreground">No code</span>}
+                      </TableCell>
+                      <TableCell className="font-medium text-foreground">{dept.name}</TableCell>
+                      <TableCell className="hidden md:table-cell text-muted-foreground max-w-xs truncate">
+                        {dept.description ?? "No description"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button asChild variant="outline" size="sm">
+                          <Link to={`/departments/show/${dept.id}`}>View</Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
 
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader>
-            <CardTitle>Subjects</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Subjects associated with {user.name} in this term.
-            </p>
-            <DataTable table={subjectsTable} paginationVariant="simple" />
-          </CardContent>
-        </Card>
-      </div>
-    </ShowView>
+      <Card className="hover:shadow-md transition-shadow">
+        <CardHeader>
+          <CardTitle>Subjects</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Subjects associated with {user.name} in this term.
+          </p>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[120px]">Code</TableHead>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>Department</TableHead>
+                  <TableHead className="w-[100px] text-right">Details</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {subsLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center">
+                      Loading subjects...
+                    </TableCell>
+                  </TableRow>
+                ) : subjects.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center">
+                      No subjects associated.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  subjects.map((sub: FacultySubject) => (
+                    <TableRow key={sub.id}>
+                      <TableCell>
+                        {sub.code ? <Badge>{sub.code}</Badge> : <span className="text-muted-foreground">No code</span>}
+                      </TableCell>
+                      <TableCell className="font-medium text-foreground">{sub.name}</TableCell>
+                      <TableCell>
+                        {sub.department ? (
+                          <Badge variant="secondary">{sub.department.name}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground">Unassigned</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button asChild variant="outline" size="sm">
+                          <Link to={`/subjects/show/${sub.id}`}>View</Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

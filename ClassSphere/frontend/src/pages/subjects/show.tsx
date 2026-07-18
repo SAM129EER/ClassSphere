@@ -1,18 +1,18 @@
-import { useLink, useShow } from "@refinedev/core";
-import { useTable } from "@refinedev/react-table";
-import { ColumnDef } from "@tanstack/react-table";
-import { useMemo } from "react";
-import { useParams } from "react-router";
-
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { useShow, useList } from "@/hooks/use-api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DataTable } from "@/components/refine-ui/data-table/data-table";
-import { ShowButton } from "@/components/refine-ui/buttons/show";
+import { Separator } from "@/components/ui/separator";
 import {
-  ShowView,
-  ShowViewHeader,
-} from "@/components/refine-ui/views/show-view";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import type { Department, Subject } from "@/types";
 
 type SubjectDetails = {
@@ -46,219 +46,75 @@ type SubjectUser = {
 };
 
 const SubjectsShow = () => {
-  const Link = useLink();
   const { id } = useParams();
+  const navigate = useNavigate();
   const subjectId = id ?? "";
 
-  const { query } = useShow<SubjectDetails>({
-    resource: "subjects",
-  });
+  // Fetch details of subject
+  const { data: detailsData, isLoading: detailsLoading, isError } = useShow<SubjectDetails>("subjects", subjectId);
+  const details = detailsData?.data;
 
-  const details = query.data?.data;
-
-  const classColumns = useMemo<ColumnDef<SubjectClass>[]>(
-    () => [
-      {
-        id: "name",
-        accessorKey: "name",
-        size: 240,
-        header: () => <p className="column-title">Class</p>,
-        cell: ({ getValue }) => (
-          <span className="text-foreground">{getValue<string>()}</span>
-        ),
-      },
-      {
-        id: "teacher",
-        accessorKey: "teacher",
-        size: 220,
-        header: () => <p className="column-title">Teacher</p>,
-        cell: ({ row }) => {
-          const teacher = row.original.teacher;
-          if (!teacher) {
-            return <span className="text-muted-foreground">Unassigned</span>;
-          }
-
-          return (
-            <div className="flex items-center gap-2">
-              <Avatar className="size-7">
-                {teacher.image && (
-                  <AvatarImage src={teacher.image} alt={teacher.name} />
-                )}
-                <AvatarFallback>{getInitials(teacher.name)}</AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col truncate">
-                <span className="truncate">{teacher.name}</span>
-                <span className="text-xs text-muted-foreground truncate">
-                  {teacher.email}
-                </span>
-              </div>
-            </div>
-          );
-        },
-      },
-      {
-        id: "status",
-        accessorKey: "status",
-        size: 120,
-        header: () => <p className="column-title">Status</p>,
-        cell: ({ getValue }) => {
-          const status = getValue<string>();
-          return (
-            <Badge variant={status === "active" ? "default" : "secondary"}>
-              {status ?? "unknown"}
-            </Badge>
-          );
-        },
-      },
-      {
-        id: "details",
-        size: 140,
-        header: () => <p className="column-title">Details</p>,
-        cell: ({ row }) => (
-          <ShowButton
-            resource="classes"
-            recordItemId={row.original.id}
-            variant="outline"
-            size="sm"
-          >
-            View
-          </ShowButton>
-        ),
-      },
-    ],
-    []
+  // Fetch classes for this subject
+  const { data: classesData, isLoading: classesLoading } = useList<SubjectClass>(
+    `subjects/${subjectId}/classes`,
+    { limit: 10 }
   );
+  const classes = classesData?.data ?? [];
 
-  const userColumns = useMemo<ColumnDef<SubjectUser>[]>(
-    () => [
-      {
-        id: "name",
-        accessorKey: "name",
-        size: 240,
-        header: () => <p className="column-title">User</p>,
-        cell: ({ row }) => (
-          <div className="flex items-center gap-2">
-            <Avatar className="size-7">
-              {row.original.image && (
-                <AvatarImage src={row.original.image} alt={row.original.name} />
-              )}
-              <AvatarFallback>{getInitials(row.original.name)}</AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col truncate">
-              <span className="truncate">{row.original.name}</span>
-              <span className="text-xs text-muted-foreground truncate">
-                {row.original.email}
-              </span>
-            </div>
-          </div>
-        ),
-      },
-      {
-        id: "role",
-        accessorKey: "role",
-        size: 140,
-        header: () => <p className="column-title">Role</p>,
-        cell: ({ getValue }) => (
-          <Badge variant="secondary">{getValue<string>()}</Badge>
-        ),
-      },
-      {
-        id: "details",
-        size: 140,
-        header: () => <p className="column-title">Details</p>,
-        cell: ({ row }) => (
-          <ShowButton
-            resource="users"
-            recordItemId={row.original.id}
-            variant="outline"
-            size="sm"
-          >
-            View
-          </ShowButton>
-        ),
-      },
-    ],
-    []
+  // Fetch teachers for this subject
+  const { data: teachersData, isLoading: teachersLoading } = useList<SubjectUser>(
+    `subjects/${subjectId}/users`,
+    { role: "teacher", limit: 10 }
   );
+  const teachers = teachersData?.data ?? [];
 
-  const classesTable = useTable<SubjectClass>({
-    columns: classColumns,
-    refineCoreProps: {
-      resource: `subjects/${subjectId}/classes`,
-      pagination: {
-        pageSize: 10,
-        mode: "server",
-      },
-    },
-  });
+  // Fetch students for this subject
+  const { data: studentsData, isLoading: studentsLoading } = useList<SubjectUser>(
+    `subjects/${subjectId}/users`,
+    { role: "student", limit: 10 }
+  );
+  const students = studentsData?.data ?? [];
 
-  const teachersTable = useTable<SubjectUser>({
-    columns: userColumns,
-    refineCoreProps: {
-      resource: `subjects/${subjectId}/users`,
-      pagination: {
-        pageSize: 10,
-        mode: "server",
-      },
-      filters: {
-        permanent: [
-          {
-            field: "role",
-            operator: "eq",
-            value: "teacher",
-          },
-        ],
-      },
-    },
-  });
-
-  const studentsTable = useTable<SubjectUser>({
-    columns: userColumns,
-    refineCoreProps: {
-      resource: `subjects/${subjectId}/users`,
-      pagination: {
-        pageSize: 10,
-        mode: "server",
-      },
-      filters: {
-        permanent: [
-          {
-            field: "role",
-            operator: "eq",
-            value: "student",
-          },
-        ],
-      },
-    },
-  });
-
-  if (query.isLoading || query.isError || !details) {
+  if (detailsLoading || isError || !details) {
     return (
-      <ShowView className="class-view">
-        <ShowViewHeader resource="subjects" title="Subject Details" />
-        <p className="text-sm text-muted-foreground">
-          {query.isLoading
-            ? "Loading subject details..."
-            : query.isError
-            ? "Failed to load subject details."
-            : "Subject details not found."}
-        </p>
-      </ShowView>
+      <div className="space-y-4">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" onClick={() => navigate(-1)}>Back</Button>
+          <h1 className="text-2xl font-bold tracking-tight">Subject Details</h1>
+        </div>
+        <Card className="p-6">
+          <p className="text-sm text-muted-foreground">
+            {detailsLoading
+              ? "Loading subject details..."
+              : isError
+              ? "Failed to load subject details."
+              : "Subject details not found."}
+          </p>
+        </Card>
+      </div>
     );
   }
 
   return (
-    <ShowView className="class-view space-y-6">
-      <ShowViewHeader resource="subjects" title={details.subject.name} />
+    <div className="space-y-6">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" onClick={() => navigate(-1)}>Back</Button>
+          <h1 className="text-2xl font-bold tracking-tight">{details.subject.name}</h1>
+        </div>
+        <Badge variant="outline" className="w-fit text-sm py-1 px-3">
+          {details.subject.code}
+        </Badge>
+      </div>
+
+      <Separator />
 
       <Card className="hover:shadow-md transition-shadow">
-        <CardHeader className="flex w-full flex-row items-center justify-between">
+        <CardHeader>
           <CardTitle>Subject Overview</CardTitle>
-          <Badge variant="secondary">{details.subject.code}</Badge>
         </CardHeader>
-
-        <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
+        <CardContent>
+          <p className="text-sm text-muted-foreground leading-relaxed">
             {details.subject.description ?? "No description provided."}
           </p>
         </CardContent>
@@ -273,7 +129,7 @@ const SubjectsShow = () => {
             <>
               <Link
                 to={`/departments/show/${details.subject.department.id}`}
-                className="text-lg font-semibold text-foreground hover:underline"
+                className="text-lg font-semibold text-primary hover:underline"
               >
                 {details.subject.department.name}
               </Link>
@@ -293,33 +149,185 @@ const SubjectsShow = () => {
       <Card className="hover:shadow-md transition-shadow">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Classes</CardTitle>
-          <Badge variant="secondary">{details.totals.classes}</Badge>
+          <Badge>{details.totals?.classes ?? classes.length}</Badge>
         </CardHeader>
         <CardContent>
-          <DataTable table={classesTable} paginationVariant="simple" />
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Class</TableHead>
+                  <TableHead>Teacher</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-[100px] text-right">Details</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {classesLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center">
+                      Loading classes...
+                    </TableCell>
+                  </TableRow>
+                ) : classes.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center">
+                      No classes for this subject.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  classes.map((cls: SubjectClass) => (
+                    <TableRow key={cls.id}>
+                      <TableCell className="font-medium text-foreground">{cls.name}</TableCell>
+                      <TableCell>
+                        {cls.teacher ? (
+                          <div className="flex items-center gap-2">
+                            <Avatar className="size-7">
+                              {cls.teacher.image && (
+                                <AvatarImage src={cls.teacher.image} alt={cls.teacher.name} />
+                              )}
+                              <AvatarFallback>{getInitials(cls.teacher.name)}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex flex-col truncate">
+                              <span className="text-sm">{cls.teacher.name}</span>
+                              <span className="text-xs text-muted-foreground">{cls.teacher.email}</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">Unassigned</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={cls.status === "active" ? "default" : "secondary"}>
+                          {cls.status ?? "unknown"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button asChild variant="outline" size="sm">
+                          <Link to={`/classes/show/${cls.id}`}>View</Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader>
             <CardTitle>Teachers</CardTitle>
           </CardHeader>
           <CardContent>
-            <DataTable table={teachersTable} paginationVariant="simple" />
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead className="w-[100px] text-right">Details</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {teachersLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={2} className="h-24 text-center">
+                        Loading teachers...
+                      </TableCell>
+                    </TableRow>
+                  ) : teachers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={2} className="h-24 text-center">
+                        No teachers found.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    teachers.map((t: SubjectUser) => (
+                      <TableRow key={t.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="size-7">
+                              {t.image && <AvatarImage src={t.image} alt={t.name} />}
+                              <AvatarFallback>{getInitials(t.name)}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium">{t.name}</span>
+                              <span className="text-xs text-muted-foreground">{t.email}</span>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button asChild variant="outline" size="sm">
+                            <Link to={`/faculty/show/${t.id}`}>View</Link>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
 
         <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader>
             <CardTitle>Students</CardTitle>
           </CardHeader>
           <CardContent>
-            <DataTable table={studentsTable} paginationVariant="simple" />
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead className="w-[100px] text-right">Details</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {studentsLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={2} className="h-24 text-center">
+                        Loading students...
+                      </TableCell>
+                    </TableRow>
+                  ) : students.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={2} className="h-24 text-center">
+                        No students found.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    students.map((s: SubjectUser) => (
+                      <TableRow key={s.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="size-7">
+                              {s.image && <AvatarImage src={s.image} alt={s.name} />}
+                              <AvatarFallback>{getInitials(s.name)}</AvatarFallback>
+                            </Avatar>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium">{s.name}</span>
+                              <span className="text-xs text-muted-foreground">{s.email}</span>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button asChild variant="outline" size="sm">
+                            <Link to={`/faculty/show/${s.id}`}>View</Link>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </div>
-    </ShowView>
+    </div>
   );
 };
 

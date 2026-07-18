@@ -1,10 +1,8 @@
-import { useLocation, useNavigate } from "react-router";
-
+import { useLocation, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ShowView } from "@/components/refine-ui/views/show-view";
 
 type EnrollmentDetails = {
   id: number;
@@ -36,7 +34,7 @@ const EnrollmentConfirm = () => {
 
   if (!enrollment) {
     return (
-      <ShowView className="class-view">
+      <div className="space-y-4 max-w-2xl mx-auto pt-6">
         <Card>
           <CardHeader>
             <CardTitle>Enrollment</CardTitle>
@@ -50,15 +48,15 @@ const EnrollmentConfirm = () => {
             </Button>
           </CardContent>
         </Card>
-      </ShowView>
+      </div>
     );
   }
 
   return (
-    <ShowView className="class-view space-y-6">
+    <div className="space-y-6 max-w-2xl mx-auto pt-6">
       <Card>
         <CardHeader>
-          <CardTitle>Enrollment Confirmed</CardTitle>
+          <CardTitle className="text-2xl font-bold">Enrollment Confirmed</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
@@ -100,7 +98,7 @@ const EnrollmentConfirm = () => {
             </p>
           </div>
           <Separator />
-          <div className="flex gap-2">
+          <div className="flex gap-2 pt-2">
             <Button onClick={() => navigate("/classes")}>View Classes</Button>
             {enrollment.class?.id && (
               <Button
@@ -115,7 +113,7 @@ const EnrollmentConfirm = () => {
           </div>
         </CardContent>
       </Card>
-    </ShowView>
+    </div>
   );
 };
 

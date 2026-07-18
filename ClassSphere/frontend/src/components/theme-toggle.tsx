@@ -1,6 +1,6 @@
 "use client";
 
-import { useTheme } from "@/components/refine-ui/theme/theme-provider";
+import { useTheme } from "./theme-provider";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Monitor, Moon, Sun } from "lucide-react";

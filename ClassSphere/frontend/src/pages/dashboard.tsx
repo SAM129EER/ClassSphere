@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { useLink, useList } from "@refinedev/core";
+import { Link } from "react-router-dom";
+import { useList } from "@/hooks/use-api";
 import {
   Bar,
   BarChart,
@@ -23,7 +24,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import type { Department, Subject, User } from "@/types";
+import type { Department, Subject, User as AppUser } from "@/types";
 
 type ClassListItem = {
   id: number;
@@ -40,50 +41,34 @@ type ClassListItem = {
 const roleColors = ["#f97316", "#0ea5e9", "#22c55e", "#a855f7"];
 
 const Dashboard = () => {
-  const Link = useLink();
-  const { query: usersQuery } = useList<User>({
-    resource: "users",
-    pagination: { mode: "off" },
-  });
+  const { data: usersQuery } = useList<AppUser>("users");
+  const { data: subjectsQuery } = useList<Subject>("subjects");
+  const { data: departmentsQuery } = useList<Department>("departments");
+  const { data: classesQuery } = useList<ClassListItem>("classes");
 
-  const { query: subjectsQuery } = useList<Subject>({
-    resource: "subjects",
-    pagination: { mode: "off" },
-  });
-
-  const { query: departmentsQuery } = useList<Department>({
-    resource: "departments",
-    pagination: { mode: "off" },
-  });
-
-  const { query: classesQuery } = useList<ClassListItem>({
-    resource: "classes",
-    pagination: { mode: "off" },
-  });
-
-  const users = usersQuery.data?.data ?? [];
-  const subjects = subjectsQuery.data?.data ?? [];
-  const departments = departmentsQuery.data?.data ?? [];
-  const classes = classesQuery.data?.data ?? [];
+  const users: AppUser[] = usersQuery?.data ?? [];
+  const subjects: Subject[] = subjectsQuery?.data ?? [];
+  const departments: Department[] = departmentsQuery?.data ?? [];
+  const classes: ClassListItem[] = classesQuery?.data ?? [];
 
   const usersByRole = useMemo(() => {
-    const counts = users.reduce<Record<string, number>>((acc, user) => {
+    const counts = users.reduce((acc: Record<string, number>, user: AppUser) => {
       const role = user.role ?? "unknown";
       acc[role] = (acc[role] || 0) + 1;
       return acc;
-    }, {});
+    }, {} as Record<string, number>);
 
     return Object.entries(counts).map(([role, total]) => ({ role, total }));
   }, [users]);
 
   const subjectsByDepartment = useMemo(() => {
-    const counts = subjects.reduce<Record<string, number>>((acc, subject) => {
+    const counts = subjects.reduce((acc: Record<string, number>, subject: Subject) => {
       const departmentName =
         (subject as { department?: { name?: string } }).department?.name ??
         "Unassigned";
       acc[departmentName] = (acc[departmentName] || 0) + 1;
       return acc;
-    }, {});
+    }, {} as Record<string, number>);
 
     return Object.entries(counts).map(([departmentName, totalSubjects]) => ({
       departmentName,
@@ -92,11 +77,11 @@ const Dashboard = () => {
   }, [subjects]);
 
   const classesBySubject = useMemo(() => {
-    const counts = classes.reduce<Record<string, number>>((acc, classItem) => {
+    const counts = classes.reduce((acc: Record<string, number>, classItem: ClassListItem) => {
       const subjectName = classItem.subject?.name ?? "Unassigned";
       acc[subjectName] = (acc[subjectName] || 0) + 1;
       return acc;
-    }, {});
+    }, {} as Record<string, number>);
 
     return Object.entries(counts).map(([subjectName, totalClasses]) => ({
       subjectName,
@@ -106,7 +91,7 @@ const Dashboard = () => {
 
   const newestClasses = useMemo(() => {
     return [...classes]
-      .sort((a, b) => {
+      .sort((a: ClassListItem, b: ClassListItem) => {
         const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return bTime - aTime;
@@ -116,8 +101,8 @@ const Dashboard = () => {
 
   const newestTeachers = useMemo(() => {
     return users
-      .filter((user) => user.role === "teacher")
-      .sort((a, b) => {
+      .filter((user: AppUser) => user.role === "teacher")
+      .sort((a: AppUser, b: AppUser) => {
         const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return bTime - aTime;
@@ -127,7 +112,7 @@ const Dashboard = () => {
 
   const topDepartments = useMemo(() => {
     return [...subjectsByDepartment]
-      .sort((a, b) => b.totalSubjects - a.totalSubjects)
+      .sort((a: { departmentName: string; totalSubjects: number }, b: { departmentName: string; totalSubjects: number }) => b.totalSubjects - a.totalSubjects)
       .slice(0, 5)
       .map((item, index) => ({
         ...item,
@@ -137,7 +122,7 @@ const Dashboard = () => {
 
   const topSubjects = useMemo(() => {
     return [...classesBySubject]
-      .sort((a, b) => b.totalClasses - a.totalClasses)
+      .sort((a: { subjectName: string; totalClasses: number }, b: { subjectName: string; totalClasses: number }) => b.totalClasses - a.totalClasses)
       .slice(0, 5)
       .map((item, index) => ({
         ...item,
@@ -154,13 +139,13 @@ const Dashboard = () => {
     },
     {
       label: "Teachers",
-      value: users.filter((user) => user.role === "teacher").length,
+      value: users.filter((user: AppUser) => user.role === "teacher").length,
       icon: GraduationCap,
       accent: "text-emerald-600",
     },
     {
       label: "Admins",
-      value: users.filter((user) => user.role === "admin").length,
+      value: users.filter((user: AppUser) => user.role === "admin").length,
       icon: ShieldCheck,
       accent: "text-amber-600",
     },
@@ -187,7 +172,7 @@ const Dashboard = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="page-title">Dashboard</h1>
+        <h1 className="page-title text-2xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground">
           A quick snapshot of the latest activity and key metrics.
         </p>
@@ -353,7 +338,7 @@ const Dashboard = () => {
                 No recent classes.
               </p>
             )}
-            {newestClasses.map((item, index) => (
+            {newestClasses.map((item: ClassListItem, index: number) => (
               <Link
                 key={item.id}
                 to={`/classes/show/${item.id}`}
@@ -387,10 +372,10 @@ const Dashboard = () => {
                 No recent teachers.
               </p>
             )}
-            {newestTeachers.map((teacher, index) => (
+            {newestTeachers.map((teacher: AppUser, index: number) => (
               <Link
                 key={teacher.id}
-                to={`/users/show/${teacher.id}`}
+                to={`/faculty/show/${teacher.id}`}
                 className="flex items-center justify-between rounded-md border border-transparent px-3 py-2 transition-colors hover:border-primary/30 hover:bg-muted/40"
               >
                 <div className="flex items-center gap-3">
@@ -417,7 +402,7 @@ const Dashboard = () => {
             <CardTitle>Departments with Most Subjects</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {topDepartments.map((dept, index) => (
+            {topDepartments.map((dept: { departmentId: number; departmentName: string; totalSubjects: number }, index: number) => (
               <div
                 key={dept.departmentId}
                 className="flex items-center justify-between rounded-md border border-transparent px-3 py-2 transition-colors hover:border-primary/30 hover:bg-muted/40"
@@ -444,7 +429,7 @@ const Dashboard = () => {
             <CardTitle>Subjects with Most Classes</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {topSubjects.map((subject, index) => (
+            {topSubjects.map((subject: { subjectId: number; subjectName: string; totalClasses: number }, index: number) => (
               <div
                 key={subject.subjectId}
                 className="flex items-center justify-between rounded-md border border-transparent px-3 py-2 transition-colors hover:border-primary/30 hover:bg-muted/40"

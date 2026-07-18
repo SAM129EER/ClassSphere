@@ -1,13 +1,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { useCreate, useGetIdentity, useList } from "@refinedev/core";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
+import { useCreate, useList } from "@/hooks/use-api";
+import { useAuth } from "@/context/auth-context";
 
-import { Breadcrumb } from "@/components/refine-ui/layout/breadcrumb";
-import { CreateView } from "@/components/refine-ui/views/create-view";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
 import {
   Form,
   FormControl,
@@ -16,8 +17,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -25,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { ClassDetails, User } from "@/types";
+import type { ClassDetails } from "@/types";
 
 const enrollSchema = z.object({
   classId: z.coerce.number().min(1, "Class is required"),
@@ -35,21 +34,12 @@ type EnrollFormValues = z.infer<typeof enrollSchema>;
 
 const EnrollmentsCreate = () => {
   const navigate = useNavigate();
-  const {
-    mutateAsync: createEnrollment,
-    mutation: { isPending },
-  } = useCreate();
-  const { data: currentUser } = useGetIdentity<User>();
+  const { user: currentUser } = useAuth();
+  const { mutateAsync: createEnrollment, isPending } = useCreate("enrollments");
 
-  const { query: classesQuery } = useList<ClassDetails>({
-    resource: "classes",
-    pagination: {
-      pageSize: 100,
-    },
-  });
-
-  const classes = classesQuery.data?.data ?? [];
-  const classesLoading = classesQuery.isLoading;
+  const { data: classesQuery } = useList<ClassDetails>("classes", { limit: 100 });
+  const classes = classesQuery?.data ?? [];
+  const classesLoading = !classesQuery;
 
   const form = useForm<EnrollFormValues>({
     resolver: zodResolver(enrollSchema),
@@ -63,19 +53,20 @@ const EnrollmentsCreate = () => {
   const onSubmit = async (values: EnrollFormValues) => {
     if (!currentUser?.id) return;
 
-    const response = await createEnrollment({
-      resource: "enrollments",
-      values: {
+    try {
+      const response = await createEnrollment({
         classId: values.classId,
         studentId: currentUser.id,
-      },
-    });
+      });
 
-    navigate("/enrollments/confirm", {
-      state: {
-        enrollment: response?.data,
-      },
-    });
+      navigate("/enrollments/confirm", {
+        state: {
+          enrollment: response?.data || response, // handle raw response or response.data wrapping
+        },
+      });
+    } catch (err) {
+      console.error("Enrollment failed:", err);
+    }
   };
 
   const isSubmitDisabled =
@@ -86,27 +77,25 @@ const EnrollmentsCreate = () => {
     !selectedClassId;
 
   return (
-    <CreateView className="class-view">
-      <Breadcrumb />
-
-      <h1 className="page-title">Enroll in a Class</h1>
-      <div className="intro-row">
-        <p>Select a class to enroll as the current user.</p>
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Enroll in a Class</h1>
+        <p className="text-muted-foreground">
+          Select a class to enroll as the current user.
+        </p>
       </div>
 
       <Separator />
 
-      <div className="my-4 flex items-center">
-        <Card className="class-form-card">
-          <CardHeader className="relative z-10">
-            <CardTitle className="text-2xl pb-0 font-bold text-gradient-orange">
+      <div className="my-4 flex items-center justify-center">
+        <Card className="w-full max-w-2xl">
+          <CardHeader>
+            <CardTitle className="text-xl font-semibold">
               Enrollment Form
             </CardTitle>
           </CardHeader>
-
           <Separator />
-
-          <CardContent className="mt-7">
+          <CardContent className="mt-6">
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit(onSubmit)}
@@ -131,7 +120,7 @@ const EnrollmentsCreate = () => {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {classes.map((classItem) => (
+                          {classes.map((classItem: ClassDetails) => (
                             <SelectItem
                               key={classItem.id}
                               value={String(classItem.id)}
@@ -164,7 +153,7 @@ const EnrollmentsCreate = () => {
           </CardContent>
         </Card>
       </div>
-    </CreateView>
+    </div>
   );
 };
 

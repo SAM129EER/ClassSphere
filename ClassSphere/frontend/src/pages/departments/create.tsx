@@ -1,10 +1,10 @@
+import { useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "@refinedev/react-hook-form";
-import { useBack, type BaseRecord, type HttpError } from "@refinedev/core";
 import * as z from "zod";
+import { toast } from "sonner";
 
-import { CreateView } from "@/components/refine-ui/views/create-view";
-import { Breadcrumb } from "@/components/refine-ui/layout/breadcrumb";
+import { useCreate } from "@/hooks/use-api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -30,14 +30,11 @@ const departmentSchema = z.object({
 type DepartmentFormValues = z.infer<typeof departmentSchema>;
 
 const DepartmentsCreate = () => {
-  const back = useBack();
+  const navigate = useNavigate();
+  const { mutateAsync: createDepartment, isPending } = useCreate("departments");
 
-  const form = useForm<BaseRecord, HttpError, DepartmentFormValues>({
+  const form = useForm<DepartmentFormValues>({
     resolver: zodResolver(departmentSchema),
-    refineCoreProps: {
-      resource: "departments",
-      action: "create",
-    },
     defaultValues: {
       code: "",
       name: "",
@@ -45,48 +42,45 @@ const DepartmentsCreate = () => {
     },
   });
 
-  const {
-    refineCore: { onFinish },
-    handleSubmit,
-    formState: { isSubmitting },
-    control,
-  } = form;
-
   const onSubmit = async (values: DepartmentFormValues) => {
     try {
-      await onFinish(values);
-    } catch (error) {
+      await createDepartment(values);
+      toast.success("Department created successfully!", { richColors: true });
+      navigate("/departments");
+    } catch (error: any) {
       console.error("Error creating department:", error);
+      toast.error(error.message || "Failed to create department", { richColors: true });
     }
   };
 
   return (
-    <CreateView className="class-view">
-      <Breadcrumb />
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Create a Department</h1>
+        <p className="text-muted-foreground">
+          Provide the required information below to add a department.
+        </p>
+      </div>
 
-      <h1 className="page-title">Create a Department</h1>
-      <div className="intro-row">
-        <p>Provide the required information below to add a department.</p>
-        <Button onClick={() => back()}>Go Back</Button>
+      <div className="flex justify-between items-center">
+        <Button variant="outline" onClick={() => navigate(-1)}>Go Back</Button>
       </div>
 
       <Separator />
 
-      <div className="my-4 flex items-center">
-        <Card className="class-form-card">
-          <CardHeader className="relative z-10">
-            <CardTitle className="text-2xl pb-0 font-bold text-gradient-orange">
+      <div className="my-4 flex items-center justify-center">
+        <Card className="w-full max-w-2xl">
+          <CardHeader>
+            <CardTitle className="text-xl font-semibold">
               Fill out form
             </CardTitle>
           </CardHeader>
-
           <Separator />
-
-          <CardContent className="mt-7">
+          <CardContent className="mt-6">
             <Form {...form}>
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
                 <FormField
-                  control={control}
+                  control={form.control}
                   name="code"
                   render={({ field }) => (
                     <FormItem>
@@ -102,7 +96,7 @@ const DepartmentsCreate = () => {
                 />
 
                 <FormField
-                  control={control}
+                  control={form.control}
                   name="name"
                   render={({ field }) => (
                     <FormItem>
@@ -118,7 +112,7 @@ const DepartmentsCreate = () => {
                 />
 
                 <FormField
-                  control={control}
+                  control={form.control}
                   name="description"
                   render={({ field }) => (
                     <FormItem>
@@ -137,15 +131,15 @@ const DepartmentsCreate = () => {
                   )}
                 />
 
-                <Button type="submit" size="lg" disabled={isSubmitting}>
-                  {isSubmitting ? "Creating..." : "Create Department"}
+                <Button type="submit" size="lg" disabled={isPending}>
+                  {isPending ? "Creating..." : "Create Department"}
                 </Button>
               </form>
             </Form>
           </CardContent>
         </Card>
       </div>
-    </CreateView>
+    </div>
   );
 };
 

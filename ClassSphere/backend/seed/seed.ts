@@ -14,6 +14,8 @@ import {
   user,
 } from "../src/db/schema";
 
+import { auth } from "../src/lib/auth.js";
+
 type SeedUser = {
   id: string;
   name: string;
@@ -80,19 +82,30 @@ const ensureMapValue = <T>(map: Map<string, T>, key: string, label: string) => {
 const seed = async () => {
   const data = await loadSeedData();
 
-  // await db.delete(enrollments);
-  // await db.delete(classes);
-  // await db.delete(subjects);
-  // await db.delete(departments);
-  // await db.delete(session);
-  // await db.delete(account);
-  // await db.delete(user);
+  await db.delete(enrollments);
+  await db.delete(classes);
+  await db.delete(subjects);
+  await db.delete(departments);
+  await db.delete(session);
+  await db.delete(account);
+  await db.delete(user);
 
   if (data.users.length) {
+    const ctx = await auth.$context;
+    const usersWithHashedPasswords = await Promise.all(
+      data.users.map(async (seedUser) => {
+        const hashedPassword = await ctx.password.hash(seedUser.password);
+        return {
+          ...seedUser,
+          password: hashedPassword,
+        };
+      })
+    );
+
     await db
       .insert(user)
       .values(
-        data.users.map((seedUser) => ({
+        usersWithHashedPasswords.map((seedUser) => ({
           id: seedUser.id,
           name: seedUser.name,
           email: seedUser.email,
@@ -106,11 +119,11 @@ const seed = async () => {
     await db
       .insert(account)
       .values(
-        data.users.map((seedUser) => ({
+        usersWithHashedPasswords.map((seedUser) => ({
           id: `acc_${seedUser.id}`,
           userId: seedUser.id,
           accountId: seedUser.email,
-          providerId: "credentials",
+          providerId: "credential",
           password: seedUser.password,
         }))
       )
