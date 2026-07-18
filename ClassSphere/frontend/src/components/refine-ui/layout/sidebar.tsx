@@ -24,10 +24,9 @@ import { cn } from "@/lib/utils";
 import {
   useLink,
   useMenu,
-  useRefineOptions,
   type TreeMenuItem,
 } from "@refinedev/core";
-import { ChevronRight, ListIcon } from "lucide-react";
+import { ChevronRight, GraduationCap, ListIcon } from "lucide-react";
 import React from "react";
 
 export function Sidebar() {
@@ -210,7 +209,6 @@ function SidebarItemLink({ item, selectedKey }: MenuItemProps) {
 }
 
 function SidebarHeader() {
-  const { title } = useRefineOptions();
   const { open, isMobile } = useShadcnSidebar();
 
   return (
@@ -243,11 +241,14 @@ function SidebarHeader() {
           }
         )}
       >
-        <div>{title.icon}</div>
+        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary shrink-0">
+          <GraduationCap className="h-5 w-5" />
+        </div>
         <h2
           className={cn(
             "text-sm",
             "font-bold",
+            "text-foreground",
             "transition-opacity",
             "duration-200",
             {
@@ -256,7 +257,7 @@ function SidebarHeader() {
             }
           )}
         >
-          {title.text}
+          ClassSphere
         </h2>
       </div>
 

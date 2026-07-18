@@ -1,5 +1,4 @@
 import { Authenticated, Refine } from "@refinedev/core";
-import { DevtoolsProvider } from "@refinedev/devtools";
 import { RefineKbar, RefineKbarProvider } from "@refinedev/kbar";
 
 import routerProvider, {
@@ -47,8 +46,7 @@ function App() {
     <BrowserRouter>
       <RefineKbarProvider>
         <ThemeProvider>
-          <DevtoolsProvider>
-            <Refine
+          <Refine
               dataProvider={dataProvider}
               authProvider={authProvider}
               notificationProvider={useNotificationProvider()}
@@ -182,7 +180,6 @@ function App() {
   }
 />
             </Refine>
-          </DevtoolsProvider>
         </ThemeProvider>
       </RefineKbarProvider>
     </BrowserRouter>

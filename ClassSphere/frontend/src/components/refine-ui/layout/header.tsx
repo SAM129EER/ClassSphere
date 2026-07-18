@@ -9,8 +9,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { useGetIdentity, useLogout, useRefineOptions } from "@refinedev/core";
-import { LogOutIcon } from "lucide-react";
+import { useGetIdentity, useLogout } from "@refinedev/core";
+import { GraduationCap, LogOutIcon } from "lucide-react";
 import type { User } from "@/types";
 
 export const Header = () => {
@@ -46,8 +46,6 @@ function DesktopHeader() {
 
 function MobileHeader() {
   const { open, isMobile } = useSidebar();
-
-  const { title } = useRefineOptions();
 
   return (
     <header
@@ -94,11 +92,14 @@ function MobileHeader() {
           }
         )}
       >
-        <div>{title.icon}</div>
+        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary shrink-0">
+          <GraduationCap className="h-5 w-5" />
+        </div>
         <h2
           className={cn(
             "text-sm",
             "font-bold",
+            "text-foreground",
             "transition-opacity",
             "duration-200",
             "max-sm:hidden",
@@ -108,7 +109,7 @@ function MobileHeader() {
             }
           )}
         >
-          {title.text}
+          ClassSphere
         </h2>
       </div>
 
